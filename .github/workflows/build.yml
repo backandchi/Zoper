@@ -13,32 +13,31 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Unzip project
-      run: |
-        mkdir -p project_source
-        unzip -q "*.zip" -d project_source || unzip -q "jarvis-ai (1).zip" -d project_source
-
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Find and Build APK
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Unzip project
       run: |
-        # gradlew faylini izlaymiz
-        GRADLEW_PATH=$(find project_source -name gradlew -type f | head -n 1)
-        
-        if [ -z "$GRADLEW_PATH" ]; then
-          echo "XATOLIK: gradlew fayli topilmadi! Zip ichidagi fayllar:"
-          ls -R project_source
-          exit 1
-        fi
-        
-        WORK_DIR=$(dirname "$GRADLEW_PATH")
-        echo "Loyiha ildiz papkasi: $WORK_DIR"
-        cd "$WORK_DIR"
-        
+        mkdir -p project_source
+        unzip -q "*.zip" -d project_source || unzip -q "jarvis-ai (1).zip" -d project_source
+
+    - name: Fix Missing Gradle Wrapper and Build APK
+      run: |
+        # App papkasi joylashgan ildiz joyni topamiz
+        APP_DIR=$(dirname $(find project_source -name "build.gradle*" -o -name "settings.gradle*" | head -n 1))
+        echo "Loyiha ildiz papkasi: $APP_DIR"
+        cd "$APP_DIR"
+
+        # Tushib qolgan Gradle Wrapper fayllarini avtomatik yaratamiz
+        gradle wrapper
+
+        # Build huquqini beramiz va APK yig'amiz
         chmod +x gradlew
         ./gradlew assembleDebug
 
