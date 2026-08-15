@@ -27,7 +27,7 @@ jobs:
         mkdir -p project_source
         unzip -q "*.zip" -d project_source || unzip -q "jarvis-ai.zip" -d project_source
 
-    - name: Fix Compatibility and Build APK
+    - name: Fix Google Services and Build APK
       run: |
         APP_PATH=$(find project_source -name "app" -type d | head -n 1)
         ROOT_DIR=$(dirname "$APP_PATH")
@@ -36,10 +36,9 @@ jobs:
         # Keystore yaratish
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
-        # Soxta google-services.json yaratish (Firebase xatosini yo'qotish uchun)
-        if [ -d "app" ] && [ ! -f "app/google-services.json" ]; then
-          echo '{"project_info":{"project_number":"123","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:123","android_client_info":{"package_name":"com.example.app"}},"oauth_client":[],"api_key":[{"current_key":"dummy_key"}],"services":{"analytics_service":{"status":1}}}]}' > app/google-services.json
-        fi
+        # Aniq package name (com.aistudio.jarvis.kxmpzq) bilan google-services.json yaratamiz
+        mkdir -p app
+        echo '{"project_info":{"project_number":"123456789","project_id":"jarvis-ai-dummy","storage_bucket":"jarvis-ai-dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789:android:123456789","android_client_info":{"package_name":"com.aistudio.jarvis.kxmpzq"}},"oauth_client":[],"api_key":[{"current_key":"dummy_api_key_for_build"}],"services":{"analytics_service":{"status":1}}}]}' > app/google-services.json
 
         if [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
           echo 'include(":app")' > settings.gradle.kts
@@ -52,7 +51,7 @@ jobs:
         gradle wrapper
         chmod +x gradlew
 
-        # Kotlin versiyasini eski Compose plagini mos keladigan 1.9.23 ga tushiramiz
+        # Build qilish
         ./gradlew assembleDebug -Pkotlin.version=1.9.23 -Porg.jetbrains.kotlin.compiler.version=1.9.23
 
     - name: Upload APK
@@ -61,3 +60,4 @@ jobs:
       with:
         name: Jarvis-APK
         path: project_source/**/app/build/outputs/apk/debug/*.apk
+        
