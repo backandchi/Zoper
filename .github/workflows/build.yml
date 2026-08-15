@@ -27,20 +27,20 @@ jobs:
         mkdir -p project_source
         unzip -q "*.zip" -d project_source || unzip -q "jarvis-ai.zip" -d project_source
 
-    - name: Patch Compose Plugin and Build APK
+    - name: Build and Output Detailed Error Log
       run: |
         APP_PATH=$(find project_source -name "app" -type d | head -n 1)
         ROOT_DIR=$(dirname "$APP_PATH")
         cd "$ROOT_DIR"
 
-        # 1. Debug Keystore yaratish
+        # 1. Debug Keystore
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
-        # 2. Google Services faylini yaratish
+        # 2. Dummy google-services.json
         mkdir -p app
         echo '{"project_info":{"project_number":"123456789","project_id":"jarvis-ai-dummy","storage_bucket":"jarvis-ai-dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789:android:123456789","android_client_info":{"package_name":"com.aistudio.jarvis.kxmpzq"}},"oauth_client":[],"api_key":[{"current_key":"dummy_api_key_for_build"}],"services":{"analytics_service":{"status":1}}}]}' > app/google-services.json
 
-        # 3. Eski Compose compiler plagini o'chirish (Kotlin 2.0 bilan to'qnashmasligi uchun)
+        # 3. Eski Compose compiler tozalash
         find . -name "build.gradle*" -exec sed -i '/composeOptions/,$ { /kotlinCompilerExtensionVersion/d }' {} +
         find . -name "build.gradle*" -exec sed -i '/androidx.compose.compiler:compiler/d' {} +
 
@@ -55,8 +55,8 @@ jobs:
         gradle wrapper
         chmod +x gradlew
 
-        # 4. APK yig'ish
-        ./gradlew assembleDebug --no-daemon
+        # Aniq xatoni chiqarish uchun --info parametri bilan ishga tushiramiz
+        ./gradlew assembleDebug --info
 
     - name: Upload APK
       if: success()
