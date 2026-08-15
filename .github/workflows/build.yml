@@ -15,7 +15,8 @@ jobs:
 
     - name: Unzip project
       run: |
-        unzip -q *.zip -d project_source
+        mkdir -p project_source
+        unzip -q "*.zip" -d project_source || unzip -q "jarvis-ai (1).zip" -d project_source
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -25,12 +26,19 @@ jobs:
 
     - name: Find and Build APK
       run: |
-        # Gradlew joylashgan papkani topamiz
-        WORK_DIR=$(dirname $(find ./project_source -name gradlew | head -n 1))
-        echo "Loyiha shu papkada: $WORK_DIR"
+        # gradlew faylini izlaymiz
+        GRADLEW_PATH=$(find project_source -name gradlew -type f | head -n 1)
+        
+        if [ -z "$GRADLEW_PATH" ]; then
+          echo "XATOLIK: gradlew fayli topilmadi! Zip ichidagi fayllar:"
+          ls -R project_source
+          exit 1
+        fi
+        
+        WORK_DIR=$(dirname "$GRADLEW_PATH")
+        echo "Loyiha ildiz papkasi: $WORK_DIR"
         cd "$WORK_DIR"
         
-        # Build huquqini beramiz va yig'amiz
         chmod +x gradlew
         ./gradlew assembleDebug
 
