@@ -27,13 +27,16 @@ jobs:
         mkdir -p project_source
         unzip -q "*.zip" -d project_source || unzip -q "jarvis-ai (1).zip" -d project_source
 
-    - name: Fix Root Structure and Build APK
+    - name: Fix Keystore, Root Structure and Build APK
       run: |
-        # app papkasi joylashgan ASOSIY ildiz papkani topamiz
+        # Asosiy ildiz papkani topamiz
         APP_PATH=$(find project_source -name "app" -type d | head -n 1)
         ROOT_DIR=$(dirname "$APP_PATH")
         echo "Loyiha ildiz papkasi: $ROOT_DIR"
         cd "$ROOT_DIR"
+
+        # Tushib qolgan debug.keystore faylini avtomatik yaratamiz
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
         # Yetishmayotgan settings.gradle.kts bo'lmasa yaratamiz
         if [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
@@ -45,7 +48,7 @@ jobs:
           echo '// Root build file' > build.gradle.kts
         fi
 
-        # Root darajasida Gradle Wrapper yaratamiz
+        # Gradle Wrapper yaratamiz
         gradle wrapper
 
         # APK yig'ish
