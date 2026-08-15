@@ -25,39 +25,39 @@ jobs:
     - name: Unzip project
       run: |
         mkdir -p project_source
-        unzip -q "*.zip" -d project_source || unzip -q "jarvis-ai (1).zip" -d project_source
+        unzip -q "*.zip" -d project_source || unzip -q "jarvis-ai.zip" -d project_source
 
-    - name: Fix Keystore, Root Structure and Build APK
+    - name: Fix Compatibility and Build APK
       run: |
-        # Asosiy ildiz papkani topamiz
         APP_PATH=$(find project_source -name "app" -type d | head -n 1)
         ROOT_DIR=$(dirname "$APP_PATH")
-        echo "Loyiha ildiz papkasi: $ROOT_DIR"
         cd "$ROOT_DIR"
 
-        # Tushib qolgan debug.keystore faylini avtomatik yaratamiz
+        # Keystore yaratish
         keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
-        # Yetishmayotgan settings.gradle.kts bo'lmasa yaratamiz
+        # Soxta google-services.json yaratish (Firebase xatosini yo'qotish uchun)
+        if [ -d "app" ] && [ ! -f "app/google-services.json" ]; then
+          echo '{"project_info":{"project_number":"123","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:123","android_client_info":{"package_name":"com.example.app"}},"oauth_client":[],"api_key":[{"current_key":"dummy_key"}],"services":{"analytics_service":{"status":1}}}]}' > app/google-services.json
+        fi
+
         if [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
           echo 'include(":app")' > settings.gradle.kts
         fi
 
-        # Yetishmayotgan root build.gradle.kts bo'lmasa yaratamiz
         if [ ! -f "build.gradle" ] && [ ! -f "build.gradle.kts" ]; then
           echo '// Root build file' > build.gradle.kts
         fi
 
-        # Gradle Wrapper yaratamiz
         gradle wrapper
-
-        # APK yig'ish
         chmod +x gradlew
-        ./gradlew assembleDebug
+
+        # Kotlin versiyasini eski Compose plagini mos keladigan 1.9.23 ga tushiramiz
+        ./gradlew assembleDebug -Pkotlin.version=1.9.23 -Porg.jetbrains.kotlin.compiler.version=1.9.23
 
     - name: Upload APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: Jarvis-APK
         path: project_source/**/app/build/outputs/apk/debug/*.apk
-        
