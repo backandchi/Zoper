@@ -20,6 +20,47 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Looks for a .zip anywhere in the repo (e.g. jarvis-ai-fixed.zip),
+      # unzips it, and figures out where the real Gradle project root is
+      # (handles both "zip contains one wrapper folder" and "zip contains
+      # the project files directly" layouts). Everything after this step
+      # runs inside that resolved folder.
+      - name: Locate & extract project zip
+        run: |
+          set -e
+          ZIP_FILE=$(find . -maxdepth 2 -iname "*.zip" | head -n1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "❌ No .zip file found in the repository. Nothing to build."
+            exit 1
+          fi
+          echo "📦 Found zip: $ZIP_FILE"
+
+          mkdir -p extracted
+          unzip -q "$ZIP_FILE" -d extracted
+
+          # If the zip extracted into exactly one top-level folder (no loose
+          # files), treat that folder as the project root. Otherwise the
+          # extracted folder itself is the project root.
+          TOPDIRS=$(find extracted -mindepth 1 -maxdepth 1 -type d | wc -l)
+          TOPFILES=$(find extracted -mindepth 1 -maxdepth 1 -type f | wc -l)
+
+          if [ "$TOPDIRS" -eq 1 ] && [ "$TOPFILES" -eq 0 ]; then
+            INNER_DIR=$(find extracted -mindepth 1 -maxdepth 1 -type d)
+            PROJECT_DIR="$INNER_DIR"
+          else
+            PROJECT_DIR="extracted"
+          fi
+
+          # Sanity check: make sure this actually looks like an Android/Gradle project.
+          if [ ! -f "$PROJECT_DIR/settings.gradle.kts" ] && [ ! -f "$PROJECT_DIR/settings.gradle" ]; then
+            echo "❌ Could not find settings.gradle(.kts) inside the zip at $PROJECT_DIR"
+            find extracted -maxdepth 3
+            exit 1
+          fi
+
+          echo "✅ Project root resolved to: $PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -42,6 +83,7 @@ jobs:
       # Generates gradlew/gradlew.bat/gradle-wrapper.jar so contributors can
       # build locally too. Safe to re-run; it just refreshes the wrapper files.
       - name: Generate Gradle wrapper
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           gradle wrapper --gradle-version ${{ env.GRADLE_VERSION }}
           chmod +x ./gradlew
@@ -51,6 +93,7 @@ jobs:
       # Gradle Plugin automatically falls back to .env.example, so the
       # build still succeeds (the app just won't have a working key).
       - name: Create local .env file
+        working-directory: ${{ env.PROJECT_DIR }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
@@ -61,16 +104,18 @@ jobs:
           fi
 
       - name: Run unit tests
+        working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Build debug APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: jarvis-ai-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
       - name: Upload test reports
@@ -78,6 +123,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-reports
-          path: app/build/reports/tests/
+          path: ${{ env.PROJECT_DIR }}/app/build/reports/tests/
           if-no-files-found: ignore
           
