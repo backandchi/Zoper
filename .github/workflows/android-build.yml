@@ -51,10 +51,14 @@ jobs:
       # Gradle Plugin automatically falls back to .env.example, so the
       # build still succeeds (the app just won't have a working key).
       - name: Create local .env file
-        if: ${{ secrets.GEMINI_API_KEY != '' }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
+          else
+            echo "GEMINI_API_KEY sekret o'rnatilmagan — .env.example fallback ishlatiladi."
+          fi
 
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
@@ -76,3 +80,4 @@ jobs:
           name: unit-test-reports
           path: app/build/reports/tests/
           if-no-files-found: ignore
+          
